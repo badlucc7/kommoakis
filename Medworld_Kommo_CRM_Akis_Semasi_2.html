@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Medworld — Kommo CRM Akış Şeması</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EDF0F4;
+    --surface:#FFFFFF;
+    --ink:#161A21;
+    --ink-soft:#5B6472;
+    --ink-faint:#8A93A3;
+    --line:#DCE1E9;
+    --sales:#2F6FED;
+    --sales-bg:#EAF0FF;
+    --passive:#6B7280;
+    --passive-bg:#EEF0F2;
+    --coord:#8952E0;
+    --coord-bg:#F3ECFC;
+    --cs:#0E9C6C;
+    --cs-bg:#E7F8F1;
+    --social:#DB4C8A;
+    --social-bg:#FCEAF3;
+    --open:#C97A12;
+    --open-bg:#FDF1DF;
+    --lost:#D64545;
+    --lost-bg:#FCEBEB;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    line-height:1.5;
+    padding-bottom:120px;
+  }
+  ::selection{background:#CFE0FF;}
+
+  h1,h2,h3,.disp{font-family:'Space Grotesk',system-ui,sans-serif;}
+
+  [contenteditable]{
+    outline:none;
+    border-radius:6px;
+    transition:background .15s;
+  }
+  body.unlocked [contenteditable]:hover{background:rgba(47,111,237,0.06); cursor:text;}
+  body.unlocked [contenteditable]:focus{background:#FFF7DD; box-shadow:0 0 0 2px #F2C94C;}
+  body.locked [contenteditable]{cursor:default;}
+
+  /* ---------- lock overlay ---------- */
+  .lockbox{
+    position:fixed; inset:0; z-index:200;
+    background:rgba(22,26,33,0.55); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center;
+  }
+  .lockbox.show{display:flex;}
+  .lockcard{
+    background:var(--surface); border-radius:16px; padding:26px 26px 22px;
+    width:100%; max-width:320px; box-shadow:0 20px 50px rgba(0,0,0,0.25);
+  }
+  .lockcard .lk-icon{font-size:22px; margin-bottom:8px;}
+  .lockcard h3{margin:0 0 4px; font-size:16px;}
+  .lockcard p{margin:0 0 14px; font-size:12.5px; color:var(--ink-soft);}
+  .lockcard input{
+    width:100%; font-family:'JetBrains Mono',monospace; font-size:15px; letter-spacing:.08em;
+    padding:10px 12px; border-radius:9px; border:1px solid var(--line); margin-bottom:10px;
+    box-sizing:border-box;
+  }
+  .lockcard input:focus{outline:none; border-color:var(--sales); box-shadow:0 0 0 3px rgba(47,111,237,0.15);}
+  .lockcard .err{font-size:12px; color:var(--lost); min-height:16px; margin-bottom:6px;}
+  .lockcard .row{display:flex; gap:8px;}
+  .lockcard .row .btn{flex:1; text-align:center;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    background:rgba(237,240,244,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:14px 28px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand .mark{
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px;
+    color:#fff; background:var(--ink); padding:3px 7px; border-radius:5px; letter-spacing:.04em;
+  }
+  .brand .title{font-weight:700; font-size:15px;}
+  .hint{font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:8px;}
+  .hint .dot{width:7px;height:7px;border-radius:50%;background:#F2C94C;display:inline-block;}
+  .actions{display:flex; gap:8px;}
+  .btn{
+    font-family:'Inter'; font-size:12.5px; font-weight:600; cursor:pointer;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink);
+    padding:8px 12px; border-radius:9px;
+  }
+  .btn:hover{border-color:var(--ink-faint);}
+  .btn.primary{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  /* ---------- section nav rail ---------- */
+  .navrail{
+    max-width:1180px; margin:18px auto 0; padding:0 28px;
+    display:flex; gap:6px; flex-wrap:wrap;
+  }
+  .navrail a{
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600;
+    color:var(--ink-soft); text-decoration:none;
+    border:1px solid var(--line); background:var(--surface);
+    padding:5px 9px; border-radius:7px; white-space:nowrap;
+  }
+  .navrail a:hover{color:var(--ink); border-color:var(--ink-faint);}
+
+  /* ---------- page header ---------- */
+  .page-head{max-width:1180px; margin:34px auto 10px; padding:0 28px;}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;
+    color:var(--sales); letter-spacing:.06em; text-transform:uppercase;
+  }
+  h1{font-size:34px; margin:8px 0 6px; font-weight:700; letter-spacing:-.01em;}
+  .subtitle{color:var(--ink-soft); font-size:14.5px; max-width:720px;}
+  .source-note{
+    margin-top:14px; font-size:12.5px; color:var(--ink-faint); font-style:italic;
+  }
+
+  /* ---------- layout ---------- */
+  .wrap{max-width:1180px; margin:0 auto; padding:0 28px;}
+  section.block{
+    margin-top:56px; scroll-margin-top:80px;
+    display:grid; grid-template-columns:230px 1fr; gap:28px;
+  }
+  @media (max-width:860px){
+    section.block{grid-template-columns:1fr;}
+  }
+  .block-label{position:sticky; top:70px; align-self:start;}
+  .block-num{
+    font-family:'JetBrains Mono',monospace; font-size:34px; font-weight:700;
+    color:var(--line);
+  }
+  .block-title{font-size:19px; font-weight:700; margin-top:2px;}
+  .block-desc{font-size:12.5px; color:var(--ink-soft); margin-top:6px;}
+  .pipeline-tag{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700;
+    padding:4px 8px; border-radius:99px; margin-top:12px; letter-spacing:.03em;
+  }
+  .pipeline-tag .sw{width:7px;height:7px;border-radius:50%;}
+  .tag-sales{background:var(--sales-bg); color:var(--sales);}
+  .tag-sales .sw{background:var(--sales);}
+  .tag-passive{background:var(--passive-bg); color:var(--passive);}
+  .tag-passive .sw{background:var(--passive);}
+  .tag-coord{background:var(--coord-bg); color:var(--coord);}
+  .tag-coord .sw{background:var(--coord);}
+  .tag-cs{background:var(--cs-bg); color:var(--cs);}
+  .tag-cs .sw{background:var(--cs);}
+  .tag-social{background:var(--social-bg); color:var(--social);}
+  .tag-social .sw{background:var(--social);}
+  .tag-open{background:var(--open-bg); color:var(--open);}
+  .tag-open .sw{background:var(--open);}
+
+  .content{min-width:0;}
+
+  /* ---------- card / rule table ---------- */
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .rule-table{display:flex; flex-direction:column; gap:0;}
+  .rule-row{
+    display:grid; grid-template-columns:190px 1fr; gap:14px;
+    padding:12px 0; border-bottom:1px dashed var(--line);
+  }
+  .rule-row:last-child{border-bottom:none;}
+  .rule-key{font-weight:700; font-size:13.5px;}
+  .rule-val{font-size:13.5px; color:var(--ink-soft);}
+
+  /* ---------- flow: steps + arrows ---------- */
+  .flow{display:flex; flex-direction:column; gap:0;}
+  .flow.horizontal{flex-direction:row; align-items:stretch; flex-wrap:wrap; gap:0;}
+  .step{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:13px 15px; position:relative; font-size:13.5px;
+  }
+  .step .step-title{font-weight:700; margin-bottom:3px; display:flex; align-items:center; gap:8px;}
+  .step .step-num{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700;
+    background:var(--bg); color:var(--ink-soft); padding:2px 6px; border-radius:6px;
+  }
+  .step .step-body{color:var(--ink-soft); font-size:13px;}
+  .arrow-down{
+    display:flex; align-items:center; justify-content:center;
+    color:var(--ink-faint); font-size:16px; padding:4px 0; margin-left:20px;
+  }
+  .arrow-right{
+    display:flex; align-items:center; justify-content:center;
+    color:var(--ink-faint); font-size:16px; padding:0 6px; min-width:26px;
+  }
+  .flow-h-scroll{display:flex; overflow-x:auto; padding-bottom:6px; gap:0;}
+  .flow-h-scroll .step{min-width:168px;}
+
+  /* branch */
+  .branch-label{
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;
+    color:var(--ink-faint); margin:2px 0 8px 20px; text-transform:uppercase; letter-spacing:.03em;
+  }
+  .branches{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-left:20px;}
+  @media (max-width:640px){.branches{grid-template-columns:1fr;}}
+  .branch{
+    border-radius:12px; padding:13px 15px; font-size:13.5px; border:1px solid var(--line);
+    background:var(--surface); border-left:4px solid var(--ink-faint);
+  }
+  .branch .step-title{font-weight:700; margin-bottom:3px;}
+  .branch .step-body{color:var(--ink-soft); font-size:13px;}
+  .branch.won{border-left-color:var(--cs);}
+  .branch.lost{border-left-color:var(--lost);}
+
+  /* accent variants for step */
+  .step.sales{border-left:4px solid var(--sales);}
+  .step.passive{border-left:4px solid var(--passive);}
+  .step.coord{border-left:4px solid var(--coord);}
+  .step.cs{border-left:4px solid var(--cs);}
+  .step.social{border-left:4px solid var(--social);}
+  .step.open{border-left:4px solid var(--open); background:var(--open-bg);}
+  .step.won{border-left:4px solid var(--cs);}
+  .step.lost{border-left:4px solid var(--lost);}
+
+  /* timeline table (section 6.2, 6.3) */
+  .tl{width:100%; border-collapse:collapse; font-size:13px; background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .tl th{
+    text-align:left; font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft);
+    background:var(--bg); padding:9px 12px; border-bottom:1px solid var(--line);
+  }
+  .tl td{padding:11px 12px; border-bottom:1px solid var(--line); color:var(--ink-soft); vertical-align:top;}
+  .tl tr:last-child td{border-bottom:none;}
+  .tl td.day{font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--ink); white-space:nowrap;}
+
+  .subhead{
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px;
+    color:var(--ink); margin:22px 0 10px; text-transform:uppercase; letter-spacing:.03em;
+    display:flex; align-items:center; gap:8px;
+  }
+  .subhead:first-child{margin-top:0;}
+  .subhead::after{content:""; flex:1; height:1px; background:var(--line);}
+
+  .loop-note{
+    margin-top:10px; margin-left:20px; font-size:12.5px; color:var(--ink-faint);
+    display:flex; gap:7px; align-items:flex-start; font-style:italic;
+  }
+
+  /* open points */
+  .open-card{
+    background:var(--open-bg); border:1px dashed #E0AF5E; border-radius:12px; padding:13px 15px;
+  }
+  .open-card .step-title{color:#8A5A0C; font-weight:700; margin-bottom:3px;}
+  .open-card .step-body{color:#8A5A0C; opacity:.85; font-size:13px;}
+  .open-grid{display:flex; flex-direction:column; gap:10px;}
+
+  /* small pill list for source channels */
+  .pill-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px;}
+  .pill{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-size:13px; display:flex; justify-content:space-between; gap:10px; align-items:center;
+  }
+  .pill .ch{font-weight:600;}
+  .pill .ty{
+    font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; color:var(--ink-soft);
+    background:var(--bg); padding:2px 7px; border-radius:99px; white-space:nowrap;
+  }
+
+  footer{
+    max-width:1180px; margin:70px auto 0; padding:20px 28px; border-top:1px solid var(--line);
+    color:var(--ink-faint); font-size:12px;
+  }
+
+  @media print{
+    .topbar, .navrail{display:none;}
+    body{padding-bottom:0; background:#fff;}
+    section.block{break-inside:avoid;}
+  }
+</style>
+</head>
+<body class="locked">
+
+<div class="lockbox" id="lockbox">
+  <div class="lockcard">
+    <div class="lk-icon">🔒</div>
+    <h3>Düzenleme kilidi</h3>
+    <p>Bu sayfayı düzenlemek için şifreyi gir.</p>
+    <input type="password" id="pwInput" placeholder="Şifre" inputmode="numeric" autocomplete="off">
+    <div class="err" id="pwErr"></div>
+    <div class="row">
+      <button class="btn" id="pwCancel">Vazgeç</button>
+      <button class="btn primary" id="pwSubmit">Kilidi Aç</button>
+    </div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="mark">MEDWORLD</span>
+    <span class="title">Kommo CRM — Operasyon Akış Şeması</span>
+  </div>
+  <div class="hint" id="hintText"><span class="dot"></span> Görüntüleme modu — düzenlemek için kilidi aç</div>
+  <div class="actions">
+    <button class="btn" onclick="window.print()">Yazdır / PDF</button>
+    <button class="btn primary" id="lockToggleBtn">🔒 Düzenle</button>
+    <button class="btn" id="resetBtn" style="display:none;">Sıfırla</button>
+  </div>
+</div>
+
+<div class="navrail">
+  <a href="#s1">1. Mimari</a>
+  <a href="#s2">2. Dil</a>
+  <a href="#s3">3. Kaynaklar</a>
+  <a href="#s4">4. Atama</a>
+  <a href="#s5">5. Pipeline</a>
+  <a href="#s6">6. Takip</a>
+  <a href="#s7">7. Pasif Havuz</a>
+  <a href="#s8">8. Closed Won</a>
+  <a href="#s9">9. Lojistik</a>
+  <a href="#s10">10. Done</a>
+  <a href="#s11">11. Dönüş</a>
+  <a href="#s12">12. Sosyal Medya</a>
+  <a href="#s13">13. Açık Noktalar</a>
+</div>
+
+<div class="page-head">
+  <div class="eyebrow">Tek CRM · Çoklu Marka</div>
+  <h1 contenteditable="true">Kommo Operasyon Akış Şeması ve Şablonu</h1>
+  <div class="subtitle" contenteditable="true">Renua, Lara Smile, Lara Smile Premium, Medworld ve Cosmos markalarının tek Kommo hesabı üzerinden yürüttüğü lead-to-patient sürecinin uçtan uca akışı.</div>
+  <div class="source-note" contenteditable="true">Kaynak: Deniz Şahin — proje notu. Bu şema, notta anlatılan süreci düzenlenebilir bir akış haline getirir. Yanlış ya da eksik gördüğün her kutuyu tıklayıp doğrudan düzeltebilirsin.</div>
+</div>
+
+<div class="wrap">
+
+  <!-- 1. GENEL SİSTEM MİMARİSİ -->
+  <section class="block" id="s1">
+    <div class="block-label">
+      <div class="block-num">01</div>
+      <div class="block-title" contenteditable="true">Genel Sistem Mimarisi</div>
+      <div class="block-desc" contenteditable="true">Tüm akışın üzerine oturduğu temel kurallar.</div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="rule-table">
+          <div class="rule-row">
+            <div class="rule-key" contenteditable="true">Markalar</div>
+            <div class="rule-val" contenteditable="true">Renua, Lara Smile, Lara Smile Premium, Medworld, Cosmos</div>
+          </div>
+          <div class="rule-row">
+            <div class="rule-key" contenteditable="true">CRM</div>
+            <div class="rule-val" contenteditable="true">Tek Kommo hesabı — tüm markalar ve tüm satışçılar aynı sistemde</div>
+          </div>
+          <div class="rule-row">
+            <div class="rule-key" contenteditable="true">Telefon</div>
+            <div class="rule-val" contenteditable="true">WhatsApp API üzerinden yürütülür</div>
+          </div>
+          <div class="rule-row">
+            <div class="rule-key" contenteditable="true">Ekip</div>
+            <div class="rule-val" contenteditable="true">Satışçılar + farklı lokasyonlardaki koordinasyon ekipleri</div>
+          </div>
+          <div class="rule-row">
+            <div class="rule-key" contenteditable="true">Pipeline'lar</div>
+            <div class="rule-val" contenteditable="true">Satış · Pasif Data Havuzu · Koordinasyon · Hizmet Verilmiş (Müşteri Hizmetleri)</div>
+          </div>
+          <div class="rule-row">
+            <div class="rule-key" contenteditable="true">Reklam entegrasyonu</div>
+            <div class="rule-val" contenteditable="true">Farklı reklam hesapları CRM'e entegre — kampanya bazlı data akışı</div>
+          </div>
+          <div class="rule-row">
+            <div class="rule-key" contenteditable="true">Yetkilendirme</div>
+            <div class="rule-val" contenteditable="true">Rol bazlı yetki devri: Agent yalnızca dashboard/task takibi yapar, stage geçişleri ve otomasyon kuralları sistem tarafından yönetilir</div>
+          </div>
+          <div class="rule-row">
+            <div class="rule-key" contenteditable="true">Lokasyon</div>
+            <div class="rule-val" contenteditable="true">Farklı lokasyonlardaki koordinasyon ekipleri ayrı ekranlarda çalışır (lokasyon koordinasyon görünümünü böler)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. DİL AYRIMI -->
+  <section class="block" id="s2">
+    <div class="block-label">
+      <div class="block-num">02</div>
+      <div class="block-title" contenteditable="true">Dil Ayrımı Kuralı</div>
+      <div class="block-desc" contenteditable="true">Data ediniminde ilk filtre dildir.</div>
+      <span class="pipeline-tag tag-sales"><span class="sw"></span>Satış</span>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step sales">
+          <div class="step-title"><span class="step-num">1</span><span contenteditable="true">Dil tespiti</span></div>
+          <div class="step-body" contenteditable="true">Gelen lead'in dili tespit edilir (kampanya kaynağı / form dili / dil algılama entegrasyonu)</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step sales">
+          <div class="step-title"><span class="step-num">2</span><span contenteditable="true">Agent bazlı dil kuralı</span></div>
+          <div class="step-body" contenteditable="true">Kommo'da her satışçının hangi dil(ler)i göreceği tanımlanır</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step sales">
+          <div class="step-title"><span class="step-num">3</span><span contenteditable="true">Havuza yönlendirme</span></div>
+          <div class="step-body" contenteditable="true">Lead yalnızca o dili konuşan satışçı havuzuna düşer</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. DATA KAYNAKLARI -->
+  <section class="block" id="s3">
+    <div class="block-label">
+      <div class="block-num">03</div>
+      <div class="block-title" contenteditable="true">Data (Lead) Kaynakları</div>
+      <div class="block-desc" contenteditable="true">Tüm kanallar dil filtresine (Bölüm 2) düşer.</div>
+    </div>
+    <div class="content">
+      <div class="pill-grid">
+        <div class="pill"><span class="ch" contenteditable="true">Meta Potansiyel Müşteri Formu</span><span class="ty" contenteditable="true">Reklam formu</span></div>
+        <div class="pill"><span class="ch" contenteditable="true">Google Müşteri Formu</span><span class="ty" contenteditable="true">Reklam formu</span></div>
+        <div class="pill"><span class="ch" contenteditable="true">Web sitesi formu</span><span class="ty" contenteditable="true">Website</span></div>
+        <div class="pill"><span class="ch" contenteditable="true">Web sitesi WhatsApp tıklaması</span><span class="ty" contenteditable="true">Website</span></div>
+        <div class="pill"><span class="ch" contenteditable="true">Direkt WhatsApp mesajı</span><span class="ty" contenteditable="true">Organik</span></div>
+        <div class="pill"><span class="ch" contenteditable="true">Instagram DM</span><span class="ty" contenteditable="true">Sosyal medya</span></div>
+        <div class="pill"><span class="ch" contenteditable="true">Facebook Messenger</span><span class="ty" contenteditable="true">Sosyal medya</span></div>
+        <div class="pill"><span class="ch" contenteditable="true">E-posta</span><span class="ty" contenteditable="true">Organik</span></div>
+        <div class="pill"><span class="ch" contenteditable="true">Yorum / yeni takipçi</span><span class="ty" contenteditable="true">Bkz. Bölüm 12</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. SATIŞÇIYA ATAMA -->
+  <section class="block" id="s4">
+    <div class="block-label">
+      <div class="block-num">04</div>
+      <div class="block-title" contenteditable="true">Satışçıya Atama</div>
+      <div class="block-desc" contenteditable="true">Dil filtresinden geçen data, tamamen otomatik atanır — manuel atama yok.</div>
+      <span class="pipeline-tag tag-sales"><span class="sw"></span>Satış</span>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step sales">
+          <div class="step-title" contenteditable="true">Performans katsayısı</div>
+          <div class="step-body" contenteditable="true">Her satışçı için bir katsayı/skor tanımlanır; başarı oranı yüksek olan satışçıya orantılı olarak daha fazla data yönlendirilir</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step sales">
+          <div class="step-title" contenteditable="true">Arama entegrasyonu</div>
+          <div class="step-body" contenteditable="true">Tek telefon numarası Kommo'ya entegre edilir; tüm çağrılar ve kayıtlar sistemden dinlenebilir</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. ANA SATIŞ PIPELINE -->
+  <section class="block" id="s5">
+    <div class="block-label">
+      <div class="block-num">05</div>
+      <div class="block-title" contenteditable="true">Ana Satış Pipeline — Stage Akışı</div>
+      <div class="block-desc" contenteditable="true">Stage geçişleri asla agent inisiyatifine bırakılmaz; her geçişte dashboard'a otomatik yeni task düşer.</div>
+      <span class="pipeline-tag tag-sales"><span class="sw"></span>Satış</span>
+    </div>
+    <div class="content">
+      <div class="flow-h-scroll">
+        <div class="step sales"><div class="step-title"><span class="step-num">1</span><span contenteditable="true">Contacted</span></div><div class="step-body" contenteditable="true">İlk temas kuruldu</div></div>
+        <div class="arrow-right">→</div>
+        <div class="step sales"><div class="step-title"><span class="step-num">2</span><span contenteditable="true">Waiting Details</span></div><div class="step-body" contenteditable="true">Hasta bilgi/detay bekleniyor</div></div>
+        <div class="arrow-right">→</div>
+        <div class="step sales"><div class="step-title"><span class="step-num">3</span><span contenteditable="true">Proposal Sent</span></div><div class="step-body" contenteditable="true">Teklif/tedavi planı gönderildi</div></div>
+        <div class="arrow-right">→</div>
+        <div class="step sales"><div class="step-title"><span class="step-num">4</span><span contenteditable="true">Pending</span></div><div class="step-body" contenteditable="true">Karar bekleniyor</div></div>
+      </div>
+      <div class="branch-label">Sonuç</div>
+      <div class="branches">
+        <div class="branch won">
+          <div class="step-title"><span class="step-num">5</span><span contenteditable="true">Won</span></div>
+          <div class="step-body" contenteditable="true">Satış kapandı → Closed Won sürecine geçer (Bölüm 8)</div>
+        </div>
+        <div class="branch lost">
+          <div class="step-title"><span class="step-num">6</span><span contenteditable="true">Lost</span></div>
+          <div class="step-body" contenteditable="true">Açık Nokta: Lost sonrası tetiklenecek aksiyon notta "ileride yazılacak" olarak bırakılmış — tanımlanmamış (Bölüm 13)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. ARAMA VE TAKİP -->
+  <section class="block" id="s6">
+    <div class="block-label">
+      <div class="block-num">06</div>
+      <div class="block-title" contenteditable="true">Arama ve Takip Zaman Çizelgesi</div>
+      <div class="block-desc" contenteditable="true">Ulaşılamayan data otomatik takip zincirine girer.</div>
+      <span class="pipeline-tag tag-sales"><span class="sw"></span>Satış</span>
+    </div>
+    <div class="content">
+
+      <div class="subhead">6.1 — İlk Temas</div>
+      <div class="flow">
+        <div class="step sales">
+          <div class="step-title" contenteditable="true">Data alındı, uygun saatte</div>
+          <div class="step-body" contenteditable="true">1. arama yapılır</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="branch-label" style="margin-left:0">İki olası sonuç</div>
+        <div class="branches">
+          <div class="branch won">
+            <div class="step-title" contenteditable="true">Ulaşıldı</div>
+            <div class="step-body" contenteditable="true">İletişim başlar → Standart pipeline (Bölüm 5) işlemeye başlar</div>
+          </div>
+          <div class="branch">
+            <div class="step-title" contenteditable="true">Ulaşılamadı (+5 saat)</div>
+            <div class="step-body" contenteditable="true">2. arama otomatik hatırlatılır</div>
+          </div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step lost">
+          <div class="step-title" contenteditable="true">2. arama da ulaşılamadı (aynı gün)</div>
+          <div class="step-body" contenteditable="true">Stage "No-Answer"da kalır (agent stage değiştiremez); ilk şablon WhatsApp mesajı (görsel + isim + arama nedeni seçenekleri) otomatik gönderilir</div>
+        </div>
+      </div>
+
+      <div class="subhead">6.2 — No-Answer Sonrası Aktif Sıkı Takip Otomasyonu</div>
+      <table class="tl">
+        <tr><th>Gün</th><th>Kanal</th><th>İçerik / Kural</th></tr>
+        <tr><td class="day" contenteditable="true">3</td><td contenteditable="true">WhatsApp (template)</td><td contenteditable="true">Önceden hazırlanmış şablon kütüphanesinden, önceden belirlenmiş saatte otomatik gönderim</td></tr>
+        <tr><td class="day" contenteditable="true">5</td><td contenteditable="true">WhatsApp (template)</td><td contenteditable="true">Aynı otomasyon zinciri</td></tr>
+        <tr><td class="day" contenteditable="true">7</td><td contenteditable="true">WhatsApp (template)</td><td contenteditable="true">Aynı otomasyon zinciri</td></tr>
+        <tr><td class="day" contenteditable="true">15</td><td contenteditable="true">WhatsApp (template)</td><td contenteditable="true">Aynı otomasyon zinciri</td></tr>
+        <tr><td class="day" contenteditable="true">45</td><td contenteditable="true">WhatsApp (template)</td><td contenteditable="true">Son deneme — 45 gün sonunda yanıt yoksa Pasif Data Havuzu'na düşer (Bölüm 7)</td></tr>
+      </table>
+      <div class="loop-note" contenteditable="true">Not: Agent bu 45 günlük otomasyonun süresine veya şablonlarına müdahale edemez.</div>
+
+      <div class="subhead">6.3 — Paralel Arama Hatırlatmaları (Agent Dashboard Task)</div>
+      <table class="tl">
+        <tr><th>Gün</th><th>Task Tipi</th><th>Not</th></tr>
+        <tr><td class="day" contenteditable="true">1 / 3 / 5</td><td contenteditable="true">Stage içi hatırlatma</td><td contenteditable="true">Stage değişmezse dashboard'da otomatik follow-up task</td></tr>
+        <tr><td class="day" contenteditable="true">3 / 7 / 12 / 30</td><td contenteditable="true">Arama temelli hatırlatma</td><td contenteditable="true">No-Answer sürecine paralel dashboard task'ı — yeni bir task döngüsü yaratmaz (kısır döngü engeli)</td></tr>
+        <tr><td class="day" contenteditable="true">12 (stage sabit kalırsa)</td><td contenteditable="true">Follow-up arama</td><td contenteditable="true">1-3-5 gün başarısız olursa 12 günlük periyotlarla yeniden dashboard'a düşer; ilk aramada ulaşılamazsa yine +5 saat kuralı işler</td></tr>
+      </table>
+      <div class="loop-note" contenteditable="true">Not: Won stage'ine ulaşıldığı anda tüm takip aramaları ve otomasyonlar otomatik olarak kapanır. Agent'ın tek görevi her durumda dashboard takibidir — inisiyatif satışçıya bırakılmaz.</div>
+    </div>
+  </section>
+
+  <!-- 7. PASİF DATA HAVUZU -->
+  <section class="block" id="s7">
+    <div class="block-label">
+      <div class="block-num">07</div>
+      <div class="block-title" contenteditable="true">Pasif Data Havuzu</div>
+      <div class="block-desc" contenteditable="true">45 günlük otomasyon sonunda hâlâ yanıt alınamayan data burada bekler.</div>
+      <span class="pipeline-tag tag-passive"><span class="sw"></span>Pasif Data Havuzu</span>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step passive">
+          <div class="step-title" contenteditable="true">Data sahipliği</div>
+          <div class="step-body" contenteditable="true">Değişmez — data tekrar canlanırsa aynı agent'a geri döner</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step passive">
+          <div class="step-title" contenteditable="true">Agent erişimi</div>
+          <div class="step-body" contenteditable="true">Yok — arama yapamaz, mesaj atamaz</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step passive">
+          <div class="step-title" contenteditable="true">Tetikleme (10 gün sonra)</div>
+          <div class="step-body" contenteditable="true">Havuza düşüşten 10 gün sonra otomatik mail marketing başlar — haftalık gönderim</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="branch-label">İki olası sonuç</div>
+        <div class="branches">
+          <div class="branch won">
+            <div class="step-title" contenteditable="true">Deal'a dönüşme</div>
+            <div class="step-body" contenteditable="true">Mail tıklaması sonucu deal oluşursa CRM duplicate'i otomatik engeller; hasta aynı agent ile devam eder</div>
+          </div>
+          <div class="branch">
+            <div class="step-title" contenteditable="true">Yeniden aktifleşme</div>
+            <div class="step-body" contenteditable="true">Yanıt gelirse standart satış pipeline'a geri döner; yine yanıt alınamazsa 45 günlük döngü (Bölüm 6.2) tekrar başlar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. CLOSED WON -->
+  <section class="block" id="s8">
+    <div class="block-label">
+      <div class="block-num">08</div>
+      <div class="block-title" contenteditable="true">Closed Won — Otomatik Süreç</div>
+      <div class="block-desc" contenteditable="true">Won işaretlendiği andan itibaren tetiklenen otomasyonlar.</div>
+      <span class="pipeline-tag tag-coord"><span class="sw"></span>Koordinasyon</span>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step won">
+          <div class="step-title" contenteditable="true">Yetki devri</div>
+          <div class="step-body" contenteditable="true">Data yönetimi satışçıdan çıkar — satışçı sadece izleme yetkisine sahip olur</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step coord">
+          <div class="step-title" contenteditable="true">Koordinasyona geçiş</div>
+          <div class="step-body" contenteditable="true">Data, Koordinasyon Lideri / koordinatörlerin otomatik atama pipeline'ında görünür hale gelir (düzenleme yetkisi koordinasyon liderinde)</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step coord">
+          <div class="step-title" contenteditable="true">Confirmation mail</div>
+          <div class="step-body" contenteditable="true">Otomatik oluşur ve gönderilir: tedavi planı, ücret, uçuş bilgileri, otel ve transfer bilgileri</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step coord">
+          <div class="step-title" contenteditable="true">Tedavi tarihine kalan süre boyunca</div>
+          <div class="step-body" contenteditable="true">Haftalık geri sayım maili + hizmet/ürün bilgilendirme maili otomatik gönderilir</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step coord">
+          <div class="step-title" contenteditable="true">Uçuşa 1 gün kala</div>
+          <div class="step-body" contenteditable="true">Son hatırlatma maili gönderilir</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step open">
+          <div class="step-title" contenteditable="true">Otomasyon teknik olarak yapılamıyorsa</div>
+          <div class="step-body" contenteditable="true">Koordinasyon pipeline'ında manuel follow-up + dashboard task ile karşılanır</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. LOJİSTİK VE ŞOFÖR -->
+  <section class="block" id="s9">
+    <div class="block-label">
+      <div class="block-num">09</div>
+      <div class="block-title" contenteditable="true">Lojistik ve Şoför Süreci</div>
+      <div class="block-desc" contenteditable="true">Kommo → Sheets entegrasyonu ile beslenen operasyon.</div>
+      <span class="pipeline-tag tag-coord"><span class="sw"></span>Koordinasyon</span>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step coord">
+          <div class="step-title" contenteditable="true">Lojistik listesi</div>
+          <div class="step-body" contenteditable="true">Tüm konfirmasyonlar takip edilerek (Kommo → Sheets entegrasyonu ile) oluşturulur</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step coord">
+          <div class="step-title" contenteditable="true">Günlük liste</div>
+          <div class="step-body" contenteditable="true">Geliş / dönüş listesi her gün otomatik oluşur, koordinasyon ekranından erişilebilir</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step coord">
+          <div class="step-title" contenteditable="true">Şoför ekranı</div>
+          <div class="step-body" contenteditable="true">Listeye giren her uçuş bilgisi şoför ekranında otomatik açılır</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step coord">
+          <div class="step-title" contenteditable="true">Şoför yetkisi</div>
+          <div class="step-body" contenteditable="true">Otelden Pick-up mesajını hastaya 1 gün önceden gönderebilir; geçmiş veriyi değiştirme yetkisi yoktur</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. DONE -->
+  <section class="block" id="s10">
+    <div class="block-label">
+      <div class="block-num">10</div>
+      <div class="block-title" contenteditable="true">"Done" Statüsü ve Sonrası</div>
+      <div class="block-desc" contenteditable="true">Hasta tedavisi bitip ülkesine dönmeye hazır olduğunda.</div>
+      <span class="pipeline-tag tag-cs"><span class="sw"></span>Hizmet Verilmiş / CS</span>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step cs">
+          <div class="step-title" contenteditable="true">Tetikleyen</div>
+          <div class="step-body" contenteditable="true">Koordinasyon ekibi lideri, hasta tedavisi bitip ülkesine dönmeye hazır olduğunda "Done" statüsüne alır</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step cs">
+          <div class="step-title" contenteditable="true">Otomatik mail</div>
+          <div class="step-body" contenteditable="true">Done anında: post-op bilgileri, garanti süreçleri, güven linkleri, firma tanıtımları, Google ve Trustpilot yorum linkleri otomatik gönderilir</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step cs">
+          <div class="step-title" contenteditable="true">Pipeline geçişi</div>
+          <div class="step-body" contenteditable="true">Hasta "Hizmet Verilmiş" pipeline'ına geçer</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step cs">
+          <div class="step-title" contenteditable="true">Görünürlük</div>
+          <div class="step-body" contenteditable="true">Müşteri Hizmetleri departmanı ekranında, geçmişi değiştirilemeyecek şekilde görüntülenir</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. HASTA DÖNÜŞ SENARYOLARI -->
+  <section class="block" id="s11">
+    <div class="block-label">
+      <div class="block-num">11</div>
+      <div class="block-title" contenteditable="true">Hasta Dönüş Senaryoları</div>
+      <div class="block-desc" contenteditable="true">"Done" sonrası üç olası senaryo.</div>
+      <span class="pipeline-tag tag-cs"><span class="sw"></span>CS</span>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step cs">
+          <div class="step-title" contenteditable="true">2. Visit (tedavinin devamı) — Sorumlu: Müşteri İlişkileri</div>
+          <div class="step-body" contenteditable="true">Randevu yeniden alınır/yönetilir; tedavi biterse tekrar "Done"a alınır, 30 günde bir bülten gönderilir</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step cs">
+          <div class="step-title" contenteditable="true">Memnuniyet sonrası yeni tedavi talebi — Sorumlu: Müşteri İlişkileri → Satışçı</div>
+          <div class="step-body" contenteditable="true">Daha önceki satışçıya assign edilir, satış süreci (Bölüm 5) yeniden başlar</div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="step lost">
+          <div class="step-title" contenteditable="true">RPT (sorunlu/şikayetli hasta) — Sorumlu: Koordinatör ekibi</div>
+          <div class="step-body" contenteditable="true">Koordinatör ekranına assign edilir, gerekli tedavi planlama takip edilir; tamamlanınca yeniden "Done"a alınır ve aylık bülten gönderilir</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. SOSYAL MEDYA -->
+  <section class="block" id="s12">
+    <div class="block-label">
+      <div class="block-num">12</div>
+      <div class="block-title" contenteditable="true">Sosyal Medya Etkileşimi → Lead Kazanım Akışı</div>
+      <div class="block-desc" contenteditable="true">Bu akış koordinatör çalışanları tarafından düzenli olarak manuel tetiklenir.</div>
+      <span class="pipeline-tag tag-social"><span class="sw"></span>Sosyal Medya</span>
+    </div>
+    <div class="content">
+      <div class="flow">
+        <div class="step social"><div class="step-title"><span class="step-num">1</span><span contenteditable="true">Etkileşim</span></div><div class="step-body" contenteditable="true">Hasta Instagram/Facebook'ta hikayede bahseder, yorum yapar veya sayfayı yeni takip eder</div></div>
+        <div class="arrow-down">↓</div>
+        <div class="step social"><div class="step-title"><span class="step-num">2</span><span contenteditable="true">Otomatik karşılama</span></div><div class="step-body" contenteditable="true">Kommo Salesbot devreye girer, etkileşim türüne özel teşekkür/karşılama mesajı DM'e gönderir</div></div>
+        <div class="arrow-down">↓</div>
+        <div class="step social"><div class="step-title"><span class="step-num">3</span><span contenteditable="true">İhtiyaç belirleme</span></div><div class="step-body" contenteditable="true">Bot çoktan seçmeli sorular yöneltir</div></div>
+        <div class="arrow-down">↓</div>
+        <div class="step social"><div class="step-title"><span class="step-num">4</span><span contenteditable="true">Deal oluşumu</span></div><div class="step-body" contenteditable="true">Tedavi ile ilgili olduğu anlaşılırsa Deal'a dönüşür</div></div>
+        <div class="arrow-down">↓</div>
+        <div class="step sales"><div class="step-title"><span class="step-num">5</span><span contenteditable="true">Dil filtresi + atama</span></div><div class="step-body" contenteditable="true">Dil filtresinden geçer, sıradaki agent'a aktarılır — standart süreç (Bölüm 4-6) baştan başlar</div></div>
+        <div class="arrow-down">↓</div>
+        <div class="step open"><div class="step-title"><span class="step-num">6</span><span contenteditable="true">Tetikleme</span></div><div class="step-body" contenteditable="true">Bu akış koordinatör çalışanları tarafından düzenli olarak manuel tetiklenir (neden tam otomatik değil — bkz. Bölüm 13)</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13. AÇIK NOKTALAR -->
+  <section class="block" id="s13">
+    <div class="block-label">
+      <div class="block-num">13</div>
+      <div class="block-title" contenteditable="true">Açık Noktalar / Netleştirilmesi Gerekenler</div>
+      <div class="block-desc" contenteditable="true">Notta tanımlanmamış veya ileride detaylandırılacağı belirtilen maddeler.</div>
+      <span class="pipeline-tag tag-open"><span class="sw"></span>Açık Nokta</span>
+    </div>
+    <div class="content">
+      <div class="open-grid">
+        <div class="open-card">
+          <div class="step-title" contenteditable="true">Lost stage sonrası aksiyon</div>
+          <div class="step-body" contenteditable="true">"İleride yazılacak prompt" olarak bırakılmış, bu metinde tanımlanmamış</div>
+        </div>
+        <div class="open-card">
+          <div class="step-title" contenteditable="true">Closed Won ile ilgili "ileride yazılacak ek bilgiler"</div>
+          <div class="step-body" contenteditable="true">Metinde referans var ama içerik bu notta yok</div>
+        </div>
+        <div class="open-card">
+          <div class="step-title" contenteditable="true">Performans katsayısının hesaplanma yöntemi</div>
+          <div class="step-body" contenteditable="true">Kriterler belirtilmemiş (satış adedi mi, ciro mu, dönüşüm oranı mı?)</div>
+        </div>
+        <div class="open-card">
+          <div class="step-title" contenteditable="true">Dil algılama entegrasyonunun teknik yöntemi</div>
+          <div class="step-body" contenteditable="true">"Entegrasyon ya da kampanya bazlı ya da dil algılama" olarak üç olası yöntem sayılmış, hangisinin kullanılacağı netleşmemiş</div>
+        </div>
+        <div class="open-card">
+          <div class="step-title" contenteditable="true">Sosyal medya lead akışının "manuel tetikleme" gerekçesi</div>
+          <div class="step-body" contenteditable="true">Neden tam otomatik değil de koordinatör tetiklemesi gerektiği belirtilmemiş</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer contenteditable="true">
+  Medworld AŞ — Kommo Operasyon Akış Şeması. Bu şablon Deniz Şahin'in proje notundan üretilmiştir; düzenlemeler yalnızca bu sayfada tutulur, kaydetmek için Yazdır/PDF butonunu kullan.
+</footer>
+
+<script>
+  // Şifre kontrolü SHA-256 hash ile yapılır (kaynak kodda düz metin şifre yer almaz).
+  var PW_HASH = "ccaa4857121c028c41370a8eb2e5b78821332cb9ed1735f176bf90e0dfff550a".slice(0,64);
+
+  async function sha256Hex(text){
+    var enc = new TextEncoder().encode(text);
+    var buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  }
+
+  var body = document.body;
+  var lockbox = document.getElementById('lockbox');
+  var pwInput = document.getElementById('pwInput');
+  var pwErr = document.getElementById('pwErr');
+  var pwSubmit = document.getElementById('pwSubmit');
+  var pwCancel = document.getElementById('pwCancel');
+  var lockToggleBtn = document.getElementById('lockToggleBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var hintText = document.getElementById('hintText');
+  var editableEls = document.querySelectorAll('[contenteditable]');
+
+  function setEditable(state){
+    editableEls.forEach(function(el){ el.contentEditable = state ? "true" : "false"; });
+  }
+
+  function lockUI(){
+    body.classList.add('locked'); body.classList.remove('unlocked');
+    setEditable(false);
+    lockToggleBtn.textContent = "🔒 Düzenle";
+    resetBtn.style.display = "none";
+    hintText.innerHTML = '<span class="dot"></span> Görüntüleme modu — düzenlemek için kilidi aç';
+  }
+
+  function unlockUI(){
+    body.classList.remove('locked'); body.classList.add('unlocked');
+    setEditable(true);
+    lockToggleBtn.textContent = "🔓 Kilitle";
+    resetBtn.style.display = "inline-block";
+    hintText.innerHTML = '<span class="dot"></span> Düzenleme modu — her metin kutusuna tıklayıp değiştirebilirsin';
+  }
+
+  // Başlangıçta kilitli
+  lockUI();
+
+  lockToggleBtn.addEventListener('click', function(){
+    if(body.classList.contains('unlocked')){
+      lockUI();
+    } else {
+      pwErr.textContent = "";
+      pwInput.value = "";
+      lockbox.classList.add('show');
+      setTimeout(function(){ pwInput.focus(); }, 50);
+    }
+  });
+
+  pwCancel.addEventListener('click', function(){
+    lockbox.classList.remove('show');
+  });
+
+  async function tryUnlock(){
+    var val = pwInput.value.trim();
+    if(!val){ pwErr.textContent = "Şifre gir."; return; }
+    var hash = await sha256Hex(val);
+    if(hash === PW_HASH){
+      lockbox.classList.remove('show');
+      unlockUI();
+    } else {
+      pwErr.textContent = "Şifre yanlış.";
+      pwInput.value = "";
+      pwInput.focus();
+    }
+  }
+
+  pwSubmit.addEventListener('click', tryUnlock);
+  pwInput.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ tryUnlock(); } });
+
+  resetBtn.addEventListener('click', function(){
+    if(confirm('Tüm düzenlemeler geri alınıp orijinal içerik geri yüklensin mi?')){
+      location.reload();
+    }
+  });
+</script>
+
+</body>
+</html>
